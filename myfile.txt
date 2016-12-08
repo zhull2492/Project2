@@ -1,0 +1,5 @@
+CHAPTER 1
+This is my file. I want to know how big it is.
+
+CHAPTER 2
+I want to know how I can handle chapters.

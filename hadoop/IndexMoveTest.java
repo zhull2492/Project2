@@ -13,6 +13,7 @@ public class IndexMoveTest{
 
         try{
             Indexer.indexFile(args[0], args[1]);
+            Indexer.appendStringToHDFS(args[1]+"/part-r-00000",args[2]);
             Indexer.mvHDFS(args[1]+"/part-r-00000", "test/mv/"+args[2]);
             Indexer.rmDirFromHDFS(args[1]); 
         } catch(Exception e){

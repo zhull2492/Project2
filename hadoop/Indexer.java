@@ -11,6 +11,8 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.fs.FileUtil;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.FSDataInputStream;
+import org.apache.hadoop.fs.FSDataOutputStream;
 
 import java.io.*;
 import java.util.*;
@@ -63,5 +65,36 @@ public class Indexer{
         System.out.println("globalIndex not yet implemented");
     }
 
+    public static void appendStringToHDFS(String src, String appendString) throws Exception{
 
+        Configuration conf = new Configuration();
+        FileSystem hdfs = FileSystem.get(conf);
+
+        
+        Path path = new Path(src);
+
+
+        FSDataInputStream instream = hdfs.open(path);
+        InputStreamReader instreamreader = new InputStreamReader(instream);
+
+
+        BufferedReader reader = new BufferedReader(instreamreader);
+
+
+        String line = reader.readLine();
+        String file = "";
+        while(line != null){
+            file += line + " " + appendString + "\n";
+            line = reader.readLine();
+        }
+
+        //System.out.println(file);
+        reader.close();
+
+        FSDataOutputStream outstream = hdfs.create(path, true);
+        outstream.writeUTF(file);
+
+        outstream.close();
+
+    }
 }

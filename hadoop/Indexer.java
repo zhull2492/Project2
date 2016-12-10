@@ -47,8 +47,9 @@ public class Indexer{
     }
 
 
-    public static void rmFromHDFS(String HDFSdir) throws Exception{
-        System.out.println("rmFromHDFS not yet implemented");
+    public static void rmDirFromHDFS(String HDFSdir) throws Exception{
+        Configuration conf = new Configuration();
+        FileSystem.get(conf).delete(new Path(HDFSdir), true);
     }
 
 

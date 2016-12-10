@@ -16,9 +16,27 @@ public class Indexer{
 
 
     public static void indexFile(String inputPath, String outputPath) throws Exception{
-        System.out.println("indexFile not yet implemented");        
         
+        //create the job
+        Job job = new Job();
+        job.setJarByClass(Indexer.class);
+        job.setJobName("index_1_file");
+        
+        // set the paths
+        FileInputFormat.addInputPath(job, new Path(inputPath));
+        FileOutputFormat.setOutputPath(job, new Path(outputPath));
+
+        // set out mapper and reducer
+        job.setMapperClass(IndexMapper.class);
+        job.setCombinerClass(IndexReducer.class);
+        job.setReducerClass(IndexReducer.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(IntWritable.class);
+
+        job.waitForCompletion(true);
     }
+
 
 
     public static void copyFromAFS(String AFSdir, String HDFSdir) throws Exception{
@@ -31,7 +49,7 @@ public class Indexer{
     }
 
 
-    public static void mvHDFS(String sourceDir, destDir) throws Exception{
+    public static void mvHDFS(String sourceDir, String destDir) throws Exception{
         System.out.println("mv HDFS not yet implemented");
     }
 

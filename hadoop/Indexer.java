@@ -8,6 +8,9 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.fs.FileUtil;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 
 import java.io.*;
 import java.util.*;
@@ -49,8 +52,9 @@ public class Indexer{
     }
 
 
-    public static void mvHDFS(String sourceDir, String destDir) throws Exception{
-        System.out.println("mv HDFS not yet implemented");
+    public static void mvHDFS(String source, String dest) throws Exception{
+        Configuration conf = new Configuration();
+        FileUtil.copy(FileSystem.get(conf), new Path(source), FileSystem.get(conf), new Path(dest), true, conf);
     }
 
 

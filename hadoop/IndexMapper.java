@@ -16,8 +16,8 @@ public class IndexMapper extends Mapper<LongWritable, Text, Text, IntWritable>{
 
     public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
         
-        String line = value.toString();
-        StringTokenizer tokenizer = new StringTokenizer(line);
+        String line = value.toString().toLowerCase();
+        StringTokenizer tokenizer = new StringTokenizer(line, " .,\"{}()-;");
         
         while (tokenizer.hasMoreTokens()){
             word.set(tokenizer.nextToken());

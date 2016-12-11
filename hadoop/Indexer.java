@@ -13,6 +13,7 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.mapreduce.lib.input.KeyValueTextInputFormat;
 
 import java.io.*;
 import java.util.*;
@@ -63,6 +64,25 @@ public class Indexer{
 
     public static void globalIndex(String inputPath, String outputPath) throws Exception{
         System.out.println("globalIndex not yet implemented");
+       
+        
+        Job job = new Job();
+        job.setJarByClass(Indexer.class);
+        job.setJobName("global_index");
+
+        FileInputFormat.addInputPath(job, new Path(inputPath));
+        FileOutputFormat.setOutputPath(job, new Path(outputPath));
+
+        job.setMapperClass(GlobalIndexMapper.class);
+        // reducer class
+
+        job.setInputFormatClass(KeyValueTextInputFormat.class);
+
+        job.setOutputKeyClass(Text.class);
+        job.setOutputValueClass(Text.class);
+        
+        job.waitForCompletion(true);
+        
     }
 
     public static void appendStringToHDFS(String src, String appendString) throws Exception{

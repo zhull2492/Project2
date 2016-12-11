@@ -74,7 +74,7 @@ public class Indexer{
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
 
         job.setMapperClass(GlobalIndexMapper.class);
-        // reducer class
+        job.setReducerClass(GlobalIndexReducer.class);
 
         job.setInputFormatClass(KeyValueTextInputFormat.class);
 

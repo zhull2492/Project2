@@ -22,12 +22,12 @@ public class Indexer{
 
 
     public static void indexFile(String inputPath, String outputPath) throws Exception{
-        
+
         //create the job
         Job job = new Job();
         job.setJarByClass(Indexer.class);
         job.setJobName("index_1_file");
-        
+
         // set the paths
         FileInputFormat.addInputPath(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
@@ -45,8 +45,21 @@ public class Indexer{
 
 
 
-    public static void copyFromAFS(String AFSdir, String HDFSdir) throws Exception{
-        System.out.println("copyFromAFS not yet implemented");
+    public static void copyFromAFS(String AFSsrc, String HDFSdir) throws Exception{
+
+        Configuration conf = new Configuration();
+
+        FileSystem hdfs = FileSystem.get(conf);
+        hdfs.copyFromLocalFile(new Path(AFSsrc), new Path(HDFSdir));
+
+    }
+    
+
+    public static void mkDirHDFS(String HDFSpath) throws Exception{
+        Configuration conf = new Configuration();
+        FileSystem hdfs = FileSystem.get(conf);
+        hdfs.mkdirs(new Path(HDFSpath));
+
     }
 
 
@@ -63,9 +76,7 @@ public class Indexer{
 
 
     public static void globalIndex(String inputPath, String outputPath) throws Exception{
-        System.out.println("globalIndex not yet implemented");
-       
-        
+
         Job job = new Job();
         job.setJarByClass(Indexer.class);
         job.setJobName("global_index");
@@ -80,9 +91,9 @@ public class Indexer{
 
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
-        
+
         job.waitForCompletion(true);
-        
+
     }
 
     public static void appendStringToHDFS(String src, String appendString) throws Exception{
@@ -90,7 +101,7 @@ public class Indexer{
         Configuration conf = new Configuration();
         FileSystem hdfs = FileSystem.get(conf);
 
-        
+
         Path path = new Path(src);
 
 

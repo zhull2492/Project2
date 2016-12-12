@@ -328,17 +328,17 @@ void *process_connection(void *args){
         pthread_mutex_unlock(&super_node_lock);
     }
     else if(request_type == DATA_NODE_REQUEST){
-        printf("data node request");
+        printf("data node request\n");
         
         int i;
         // count our data nodes
         int32_t count = 0;
         for(i=0; i<MAX_DATA_NODE; i++){
-            if(data_nodes[i]!=0){
+            if(data_nodes[i][0]!='\0'){
                 count++;
             }
         }
-        printf("found %d data nodes\n");
+        printf("found %d data nodes\n", count);
         count = htonl(count);
         // send that count
         write(client_fd, &count, sizeof(int32_t));

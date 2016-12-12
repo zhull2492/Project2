@@ -345,7 +345,7 @@ void *process_connection(void *args){
         
         char dataNodeToSend[101];
         for(i=0; i<MAX_DATA_NODE; i++){
-            if(data_nodes[i]!=0){
+            if(data_nodes[i][0]!='\0'){
                 bzero(dataNodeToSend,101);
                 sprintf(dataNodeToSend, "%s;", data_nodes[i]);
                 write(client_fd, dataNodeToSend, sizeof(char) * strnlen(dataNodeToSend,101));

@@ -12,8 +12,10 @@
 #include "communication.h"
 #include "googlehelp.h"
 #include "index.h"
+#include "reducer.h"
 
-#define MAXBUFLEN 100
+//#define MAXBUFLEN 100
+#define MAX_FILE_NAME 100
 #define MAXRECVLEN 1000
 #define ECHO      0
 #define REQUEST   1
@@ -21,19 +23,6 @@
 #define HEARTBEAT 3
 
 using namespace std;
-
-#if 0
-struct IPInfo{
-    char ipaddr[MAXBUFLEN];
-    char port[MAXBUFLEN];
-};
-#endif
-
-//void createTCPSend (int * sockfd, struct addrinfo *hints, char *hostname, char *hostport);
-//void sendTCP (int *numbytes, int* sockfd, void* buf, int bytesToSend);
-//void getInfo(IPInfo * info, int * sockfd);
-//void readLastLine(char * filename, char * buf);
-//void *sendHeartbeat(void *params);
 
 int main () {
 
@@ -48,48 +37,51 @@ int main () {
     int32_t request, value;
     IPInfo myinfo, myudpinfo;
     threadParam tparam;
-    word_list * wordindex;
+    word_list * wordindex, *masterlist;
     int iter = 1;
 
     createTCPRecv(&tcpsockfd, &tcphints, NULL);
 
     strcpy(nsfile, "ns.txt");
 
+    // Read NS file until we find live nameserver
     while (1) {
-    readLastLine(nsfile, buf, iter);
+	findNameserver(nsfile, buf, iter);
 
-    start = buf;
-    end = strchr(buf, ':');
-    strncpy(nsname, start, end-start);
-    nsname[start-end] = '\0';
-    cout << "NameServer Info\nIP: " << nsname;
-    start = end+1;
-    strcpy(nsport, start);
-    cout << "\tPort: " << nsport << endl;
+	start = buf;
+	end = strchr(buf, ':');
+	strncpy(nsname, start, end-start);
+	nsname[start-end] = '\0';
+	cout << "NameServer Info\nIP: " << nsname;
+	start = end+1;
+	strcpy(nsport, start);
+	cout << "\tPort: " << nsport << endl;
 
-    if (!createTCPSend(&nssockfd, &nshints, nsname, nsport)) {
-	break;
+	// Can we connect?
+	if (!createTCPSend(&nssockfd, &nshints, nsname, nsport)) {
+	    break;
+	}
+	iter++;
     }
-    iter++;
-    }
 
+    // Collect my tcp info
     getInfo(&myinfo, &tcpsockfd);
     strcpy(strVal, myinfo.ipaddr);
     strVal[strlen(myinfo.ipaddr)] = ':';
     strVal[strlen(myinfo.ipaddr)+1] = '\0';
     strcat(strVal,myinfo.port);
 
-
     cout << "IP String: " << strVal << endl;
-
 
     request = htonl((int32_t)REGISTER);
     value = htonl((int32_t)strlen(strVal));
 
+    // Register with NS
     sendTCP(&numbytes, &nssockfd, (void *)&request, sizeof(int32_t));
     sendTCP(&numbytes, &nssockfd, (void *)&value, sizeof(int32_t));
     sendTCP(&numbytes, &nssockfd, (void *)strVal, ntohl(value));
 
+    // Store some variables
     tparam.returnfd = nssockfd;
     strcpy(tparam.nameserver, nsname);
     tparam.nameserver[strlen(nsname)] = '\0';
@@ -101,26 +93,32 @@ int main () {
 
     close(nssockfd);
 
+    // Heartbeat with NS
     createNewThread(HEARTBEAT, (void *)&tparam);
 
-//    listenTCP(&tcpsockfd, TCPBUFFER);
+    masterlist = NULL;
 
+    // Keep work coming
     while (1) {
+	cout << "Waiting for Work" << endl;
 	acceptTCP(&tcpsockfd, &newfd, &their_tcp_addr, &tcpaddrlen);
 
-//	tparam.keepRunning = 0;
+	//TODO: Need to create threads depending on map or reduce
 
-	recvTCP(&numbytes, &newfd, (int32_t *)&action, sizeof(int32_t));//MAXSEND);
+	tparam.keepRunning = 0;
 
-//	strncpy(actionstr, buf, 2);
-//	action = atoi(actionstr);
+	recvTCP(&numbytes, &newfd, (int32_t *)&action, sizeof(int32_t));
 
-	cout << "From GoogleServer: " << ntohl(action) << endl;
+	cout << "Action From GoogleServer: " << ntohl(action) << endl;
 
-//	if (action == INDEX) {
+	// Index a file
+	if (ntohl(action) == INDEX) {
+	    //TODO: INDEX THREAD
+	    //TODO: JOIN THREAD
 	    createUDPRecv(&sockfd, &hints, NULL);
 	    getInfo(&myudpinfo, &sockfd);
 
+	    // Save some variables
 	    strcpy(strVal, myudpinfo.ipaddr);
 	    strVal[strlen(myudpinfo.ipaddr)] = ':';
 	    strVal[strlen(myudpinfo.ipaddr)+1] = '\0';
@@ -130,226 +128,153 @@ int main () {
 
 	    sendTCP(&numbytes, &newfd, (void *)strVal, strlen(strVal));
 
-//	    recvUDP();
-#if 0
-    memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_DGRAM;
+	    addr_len = sizeof(their_addr);
 
-    if ((status = getaddrinfo(myinfo.ipaddr, "5490", &hints, &res)) != 0) {
-	fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(status));
-	return 0;
-    }
+	    char totalsizechar [32+1];
+	    int offset, remaining;
+	    receiveBuf = MAXRECVLEN; 
+	    char indexfile[MAXBUFLEN+1];
 
-    for (p = res; p != NULL; p = p -> ai_next) {
-	
-	if ((sockfd = socket(p->ai_family, p->ai_socktype, p->ai_protocol)) == 1) {
-	    perror("receiver: socket");
-	    continue;
-	}
+	    // Wait for chunk
+	    while(1) {
 
-	if (bind(sockfd, p->ai_addr, p->ai_addrlen) == -1) {
-	    close(sockfd);
-	    perror("receiver: bind");
-	    continue;
-	}
+		totalReceived = 0;
+		totalSize = 1;
+	        vector<char> givenData (100000, 0);
 
-	break;
-    }
+		// Recieve chunk
+		while (totalReceived < totalSize) {
+		     if ((numbytes = recvfrom(sockfd, buf, receiveBuf, 0, (struct sockaddr*)&their_addr, &addr_len)) == -1) {
+			perror("receiver: recvfrom");
+			exit(1);
+		    }
 
-    if (p == NULL) {
-	fprintf(stderr, "receiver: failed to create socket\n");
-	return 0;
-    }
+		    if (totalReceived == 0) {
+			strncpy(totalsizechar, buf, 32);
+			totalSize = atoi(totalsizechar);
+			cout << "TotalSize: " << totalSize << endl;
+			printf("%d\t%f\n", totalSize, totalSize);
+			givenData.resize(totalSize);
+			remaining = totalSize;
+			offset = 32;
+		    }
+		    else {
+			offset = 0;
+		    }
+	 	    buf [numbytes] = '\0';
 
-    freeaddrinfo(res);
-#endif
-    addr_len = sizeof(their_addr);
+		    if (remaining < MAXBUFLEN) {
+			strncpy(givenData.data()+totalReceived, buf + offset, remaining);
+		    }
+		    else {
+			strncpy(givenData.data()+totalReceived, buf + offset, numbytes - offset);
+		    }
+		    totalReceived += numbytes-offset;
+		    remaining -= numbytes - offset;
+		    cout << endl <<"Received " << totalReceived << "\tRemain " << remaining << endl;
+		}
 
-    char totalsizechar [32+1];
-    int offset, remaining;
-    receiveBuf = MAXRECVLEN; 
+		cout << endl << "Received: \n\n" << givenData.data() << endl;
 
-//    cout << "Capacity: " << givenData.capacity() << "  " << sizeof(givenData) << endl;
-
-    while(1) {
-
-	totalReceived = 0;
-	totalSize = 1;
-        vector<char> givenData (100000, 0);
-
-	while (totalReceived < totalSize) {
-	     if ((numbytes = recvfrom(sockfd, buf, receiveBuf, 0, (struct sockaddr*)&their_addr, &addr_len)) == -1) {
-		perror("receiver: recvfrom");
-		exit(1);
+		// No more in chunk
+		if (!strcmp(givenData.data(), "CODE31")) {
+		    recvUDP(&numbytes, &sockfd, buf, receiveBuf, (struct sockaddr *)&their_addr, &addr_len);
+		    strcpy(indexfile, buf);
+		    indexfile[strlen(buf)] = '\0';
+		    cout << indexfile << endl;
+		    break;
+		}
+		else {
+		    wordindex = index_string(givenData.data());
+		    //TODO: MERGE INDEX
+		    masterlist = mergeIndex(masterlist, wordindex);
+		    word_list *curr = masterlist;
+		    while(curr != NULL) {
+	//		cout << curr->word << "\t" << curr->count << endl;
+			curr = curr -> next;
+		    }
+		}
 	    }
 
-	    if (totalReceived == 0) {
-		cout << "NEW" << endl;
-		strncpy(totalsizechar, buf, 32);
-		totalSize = atoi(totalsizechar);
-		cout << "TotalSize: " << totalSize << endl;
-		printf("%d\t%f\n", totalSize, totalSize);
-//		givenData = new char [(int)totalSize+10];
-//		vector<char> newVec (totalSize, 0);
-		givenData.resize(totalSize);
-		remaining = totalSize;
-		offset = 32;
+	    cout << "Working Preparing to re-register for work" << endl;
+//	    tparam.keepRunning = 1;
+	    close(newfd);
+	} // INDEX
+	else { //REDUCE
+	    cout << "NOW SORT" << endl;
+	    int32_t numreducers;
+	    int j;
+	    char buf[MAXBUFLEN], reducers[MAX_WORKERS][MAXBUFLEN], datanodes[MAX_WORKERS][MAXBUFLEN], datahost[MAXBUFLEN], dataport[MAXBUFLEN];
+	    struct addrinfo datahints;
+
+	    recvTCP(&numbytes, &newfd, (int32_t *)&numreducers, sizeof(int32_t));
+	    cout << "Reducers: " << numreducers;
+	    for (j = 0; j < numreducers; ++j) {
+		recvTCP(&numbytes, &newfd, &reducers[j], MAXBUFLEN);
+		reducers[j][numbytes] = '\0';
+		cout << "Names: " << reducers[j] << endl;
+	    }
+	    sortListN(masterlist, numreducers);
+	    word_list * curr = masterlist;
+	    createTCPSend(&nssockfd, &nshints, nsname, nsport);
+
+	    int32_t action = htonl((int32_t)DREQUEST);
+	    int32_t numdatanodes;
+	    int datasockfd;
+
+	    sendTCP(&numbytes, &nssockfd, (void *)&action, sizeof(int32_t));
+	    recvTCP(&numbytes, &nssockfd, (void *)&numdatanodes, sizeof(int32_t));
+
+	    numdatanodes = ntohl(numdatanodes);
+	    
+	    for (j = 0; j < numdatanodes; ++j) {
+		recvTCP(&numbytes, &nssockfd, (void *)&datanodes[j], MAXBUFLEN);
+		datanodes[j][numbytes] = '\0';
+	    }
+	    start = &datanodes[0];
+	    end = strchr(&datanodes[0], ':');
+	    strncpy(datahost, start, end-start);
+	    datahost[end-start] = '\0';
+	    start = end + 1;
+	    end = strchr(start, ';');
+	    strncpy(dataport, start, end-start);
+	    dataport[end-start] = '\0';
+
+	    createTCPSend(&datasockfd, &datahints, dataname, dataport);
+	    if (numreducers == 1) {
+		cout << "I am only reducer" << endl;
+		while(curr->next != NULL) {
+		    curr = curr -> next;
+		}
 	    }
 	    else {
-		offset = 0;
+		for (j = 0; j < numreducers; ++j) {
+		    char redip[MAXBUFLEN];
+		    char redport[MAXBUFLEN], *start, *end;
+		    start = reducers[j];
+		    end = strchr(reducers[j], ':');
+		    strncpy(redip, start, end-start);
+		    redip[end-start] = '\0';
+		    start = end + 1;
+		    strcpy(redport, start);
+		    redport[strlen(start) -1] = '\0';
+
+		    while (((curr->word[0]-'a') %  numreducers) == j) {
+			//TODO: Send to datanode
+			cout << curr->word << endl;
+			curr = curr -> next;
+			if (curr == NULL) {
+			    break;
+			}
+		    }
+		}
 	    }
- 	    buf [numbytes] = '\0';
-	    //givenData[totalReceived] = ' ';
-	    if (remaining < MAXBUFLEN) {
-		strncpy(givenData.data()+totalReceived, buf + offset, remaining);
-	    }
-	    else {
-		strncpy(givenData.data()+totalReceived, buf + offset, numbytes - offset);
-	    }
-	    totalReceived += numbytes-offset;
-	    remaining -= numbytes - offset;
-	    cout << endl <<"Received " << totalReceived << "\tRemain " << remaining << endl;
+	    // TODO: Send done
+	    close(newfd);
+	    close(datasockfd);
 	}
-
-
-	//givenData[totalSize] = '\0';
-	cout << endl << "Received: \n\n" << givenData.data() << endl;
-
-
-//	delete[] givenData;
-	if (!strcmp(givenData.data(), "CODE31")) {
-	    cout << givenData.data() << endl;
-	    break;
-	}
-	else {
-	    wordindex = index_string(givenData.data());
-	    word_list *curr = wordindex;
-	    while(curr != NULL) {
-		cout << curr->word << "\t" << curr->count << endl;
-		curr = curr -> next;
-	    }
-	}
-    }
-
-	cout << "Working Preparing to re-register for work" << endl;
-//	sleep(10);
 	tparam.keepRunning = 1;
-//	createNewThread(HEARTBEAT, (void *)&tparam);
-	close(newfd);
-//	sleep(10);
-
     }
 
     return 0;
 }
-#if 0
-void readLastLine(char * filename, char * buf) {
-
-    ifstream infile;
-    bool keepLooping;
-    char ch;
-    char junk;
-    string lastLine;
-
-    infile.open(filename);
-
-    keepLooping = true;
-
-    if (infile.is_open()) {
-	infile.seekg(-2, ios_base::end);
-	while(keepLooping) {
-	    infile.get(ch);
-
-	    if ((int)infile.tellg() <= 1) {
-		infile.seekg(0);
-		keepLooping = false;
-	    }
-	    else if (ch == '\n') {
-		keepLooping = false;
-	    }
-	    else {
-		infile.seekg(-2, ios_base::cur);
-	    }
-	}
-
-	getline(infile, lastLine);
-	lastLine.copy(buf, lastLine.length());
-	buf[lastLine.length()] = '\0';
-	infile.close();
-    }
-    else {
-	cout << "Error: File Does not Exist" << endl;
-    }
-
-    return;
-}
-#endif
-#if 0
-void sendTCP (int *numbytes, int* sockfd, void* buf, int bytesToSend) {
-
-    if ((*numbytes= send(*sockfd, buf, bytesToSend, 0)) == -1) {
-	perror("Send TCP");
-	return;
-    }
-
-    return;
-}
-#endif
-#if 0
-void getInfo(IPInfo * info, int * sockfd) {
-
-    char hostname[MAXBUFLEN+1];
-    size_t len = MAXBUFLEN;    
-    struct sockaddr_in sin;
-    socklen_t len_s;
-    struct in_addr **addrlist;
-
-    cout << "HERE" << endl;
-
-    if (gethostname(hostname, len) != 0) {
-	fprintf(stderr, "gethostname\n");
-    }
-    else {
-	printf("GetHost: %s\n\n", hostname);
-    }
-
-    // Get IP
-    struct hostent *h;
-    h = gethostbyname(hostname);
-
-    if (h == NULL) {
-	printf("Unable to Get host Name");
-	return;
-    }
-
-    addrlist = (struct in_addr**)h->h_addr_list;
-
-    strcpy(info->ipaddr, inet_ntoa(*addrlist[0]));
-    info->ipaddr[strlen(inet_ntoa(*addrlist[0]))] = '\0';
-
-    len_s = sizeof(sin);
-
-    //Get Socket info
-    if (getsockname(*sockfd, (struct sockaddr*)&sin, &len_s) == -1 ) {
-	perror("Getsockname");
-    }
-
-    snprintf(info->port, sizeof(info->port), "%d", sin.sin_port);
-
-    return;
-}
-#endif
-#if 0
-void *sendHeartbeat(void *params) {
-
-    int32_t beatOpt = HEARTBEAT;
-
-    while (1) {
-	sleep(10);
-	sendTCP(&numbytes, &(((threadParam *)params)->returnfd), &beatOpt, sizeof(int32_t));
-    }
-
-    pthread_exit(NULL);
-}
-#endif

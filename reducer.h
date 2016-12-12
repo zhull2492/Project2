@@ -7,4 +7,6 @@
 #include <string.h>
 
 void sortList(word_list * head);
+word_list * mergeIndex(word_list * masterlist, word_list *newlist);
+void sortListN(word_list *head, int N);
 #endif

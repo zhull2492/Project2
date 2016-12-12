@@ -79,7 +79,7 @@ void indexRequest(char * filename, int num_files) {
     chk = 1;
 
     while (1) {
-    readLastLine(nsfile, buf, chk);
+    findNameserver(nsfile, buf, chk);
     
 
     start = buf;

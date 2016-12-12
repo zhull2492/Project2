@@ -49,7 +49,6 @@ int main (int argc, char* argv[]) {
     int iter = 1;
 
     createTCPRecv(&sockfd, &hints, NULL);
-//    listenTCP(&sockfd, TCPBUFFER);
 
     getInfo(&myinfo, &sockfd);
     strcpy(strVal, myinfo.ipaddr);
@@ -59,20 +58,20 @@ int main (int argc, char* argv[]) {
 
     strcpy(nsfile, "ns.txt");
     while(1) {
-    readLastLine(nsfile, buf, iter);
+	findNameserver(nsfile, buf, iter);
 
-    start = buf;
-    end = strchr(buf, ':');
-    strncpy(nsname, start, end-start);
-    cout << "Nameserver Info\nIP: " << nsname;
-    start = end + 1;
-    strcpy(nsport, start);
-    cout << "\tPort: " << nsport << endl;
+	start = buf;
+	end = strchr(buf, ':');
+	strncpy(nsname, start, end-start);
+	cout << "Nameserver Info\nIP: " << nsname;
+	start = end + 1;
+	strcpy(nsport, start);
+	cout << "\tPort: " << nsport << endl;
 
-    if(!createTCPSend(&nssockfd, &nshints, nsname, nsport)) {
-	break;
-    }
-    iter++;
+	if(!createTCPSend(&nssockfd, &nshints, nsname, nsport)) {
+	    break;
+        }
+	iter++;
     }
 
     cout << "IP String: " << strVal << endl;
@@ -107,7 +106,7 @@ int main (int argc, char* argv[]) {
 	strncpy(action, buf, 5);
 	action[5] = '\0';
 
-//	if (!strcmp(action, "INDEX")) {
+	if (!strcmp(action, "INDEX")) {
 	    strncpy(topParams.buf, buf, strlen(buf));
 	    topParams.buf[strlen(buf)] = '\0';
 
@@ -122,7 +121,7 @@ int main (int argc, char* argv[]) {
 #ifdef DEBUG
 	    cout << "Waiting for more" << endl;
 #endif
-//	}
+	}
 //	else if (!strcmp(action, "COUNT")) {
 //	    strncpy(topParams.buf, buf, strlen(buf));
 //	    topParams.buf[strlen(buf)] = '\0';

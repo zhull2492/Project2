@@ -483,6 +483,7 @@ void *process_data_node_heartbeat(void *args){
             else {
                 if(data_nodes[i][0] != '\0'){
                     printf("[heartbeat] data node %s at %d inactive, clearing entry in the table\n", data_nodes[i], i);
+                    data_nodes[i][0] = '\0';
                 }
             }
         }

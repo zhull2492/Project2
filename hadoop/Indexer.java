@@ -128,4 +128,11 @@ public class Indexer{
         outstream.close();
 
     }
+
+    public static void cpToLocal(String hdfsSrc, String afsDest) throws Exception{
+        Configuration conf = new Configuration();
+        FileSystem hdfs = FileSystem.get(conf);
+
+        hdfs.copyToLocalFile(new Path(hdfsSrc), new Path(afsDest));
+    }
 }

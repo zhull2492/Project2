@@ -10,8 +10,9 @@ public class RunMe2{
     // the update time in seconds
     public static final int UPDATE_FREQ = 60 * 2; 
 
-    public static final String inDir = "test/mv";
+    public static final String inDir  = "test/mv";
     public static final String outDir = "test/out";
+    public static final String afsDir = "globalIndex.txt";
     
     public static void main(String[] args){
         
@@ -39,6 +40,13 @@ public class RunMe2{
             } catch (Exception globalIndexExcept){
                 System.out.println("[ERROR] could not index");
                 System.out.println(globalIndexExcept);
+            }
+            try{
+                Indexer.cpToLocal(outDir + "/part-r-00000", afsDir);
+                System.out.println("[INFO] file copied to AFS " + afsDir);
+            } catch (Exception afsCp){
+                System.out.println("[ERROR] could not cp to afs");
+                System.out.println(afsCp);
             }
         }
 

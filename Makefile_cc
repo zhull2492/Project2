@@ -1,0 +1,18 @@
+CC = gcc -g -lpthread
+
+all: name_server index.o
+
+name_server: server.o name-stub.o
+	$(CC) -o name_server server.o name-stub.o
+
+name_stub.o: name-stub.c
+	$(CC) -c name-stub.c
+
+server.o: server.c
+	$(CC) -c server.c
+
+index.o: index.c
+	$(CC) -c index.c
+
+clean:
+	$(RM) name_server *.o *~

@@ -17,14 +17,17 @@ googleServer.o: googleServer.cpp
 googleTest.o: googleTest.cpp
 	$(CC) -c googleTest.cpp
 
-googleTest: googleTest.o
-	$(CC) -o googleTest googleTest.o
+googleTest: googleTest.o communication.o googlehelp.o
+	$(CC) -o googleTest googleTest.o communication.o googlehelp.o
 
 receiver.o: receiver.cpp
 	$(CC) -c receiver.cpp
 
-receiver: receiver.o
-	$(CC) -o receiver receiver.o
+receiver: receiver.o communication.o googlehelp.o index.o reducer.o
+	$(CC) -o receiver receiver.o communication.o googlehelp.o index.o reducer.o
+
+reducer.o: reducer.cpp
+	$(CC) -c reducer.cpp
 
 clean:
 	$(RM) googleServer googleTest receiver *.o *~

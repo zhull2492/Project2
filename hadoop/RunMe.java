@@ -2,15 +2,64 @@
 //
 // if this file looks scary, it's mostly just the error handling 
 
-
+import java.io.DataOutputStream;
 import java.io.*;
 import java.util.*;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
 
 public class RunMe {
 
     private static final String index_loc = "test/mv";
     private static final String tempIn    = "test/tempIn";
     private static final String tempOut   = "test/tempOut";
+
+    private static void sendHB(String ipString){
+        try{
+            Scanner nsRead = new Scanner(new FileReader("../ns.txt"));
+            boolean connected = false;
+            // find the nameserver
+            Socket nsSocket = null;
+            while(nsRead.hasNextLine()){
+                String nsLine = nsRead.nextLine();
+                System.out.println("[INFO] trying ns at: " + nsLine);
+                String[] nsIn = nsLine.split(":");
+                try{
+                    nsSocket = new Socket(nsIn[0], Integer.valueOf(nsIn[1]));
+                    System.out.println("[INFO] connected to ns");
+                    connected = true;
+                    break;
+                } catch (Exception nsE){
+                    System.out.println("[INFO] trying next");
+                    continue;
+                }
+            }
+
+            if(!connected){ // can't connect
+                System.out.println("[FATAL] could not connect to ns");
+                System.exit(-1);
+            }
+            // send register
+
+            int length = ipString.length();
+            DataOutputStream nsStream = new DataOutputStream(nsSocket.getOutputStream());
+            System.out.println("[INFO] sending 2 to ns");
+            nsStream.writeInt(2);
+            System.out.println("[INFO] sending " + length + " to ns");
+            nsStream.writeInt(length);
+            System.out.println("[INFO] sending " + ipString + " to ns");
+            nsStream.writeBytes(ipString);
+            nsSocket.close();
+
+        } catch (Exception regE){
+            System.out.println("[FATAL] could not contact the namserver");
+            System.out.println(regE);
+            System.exit(-1);
+
+        }
+    }
+
 
     public static void main(String[] args){
 
@@ -24,15 +73,89 @@ public class RunMe {
         System.out.println("  \\_____|_____/|____|____/ |_|\\___/ ");
         System.out.println("=========================================================");
 
-        System.out.println("enter file path:");
-        Scanner scan = new Scanner(System.in);
 
+        System.out.println("[INFO] setting up networking");
+
+
+        // NETWORKING
+        int portNum = 0;
+        String ipString = "";
+        InetAddress ipAddr;
+        ServerSocket s = null;
+        try{
+            s = new ServerSocket(0);
+            portNum = s.getLocalPort();
+            ipAddr = InetAddress.getLocalHost();
+            ipString = ipAddr.getHostAddress() + ":" + portNum;
+            System.out.println("[INFO] ipString: " + ipString);
+        } catch (Exception netE){
+            System.out.println(netE);
+            System.out.println("[FATAL] could not connect");
+            System.exit(-1);
+        }
+
+
+        try{
+            s.setSoTimeout(10*1000);
+            System.out.println("[INFO] set timeout");
+        } catch (Exception timeOutE){
+            System.out.println("[ERROR] could not set timeout");
+        }
         while(true){
-            // the file we're indexing
-            String afsLoc = scan.nextLine();
-            System.out.println("Great!  Now enter it's identifier:");
-            String toAppend = scan.nextLine();
-            System.out.println("Awesome! let's get this thing going");
+
+            // find a client
+            System.out.println("[INFO] waiting for client");
+            Socket clientSocket = null;
+            while(true){
+                sendHB(ipString);
+                try{
+                    clientSocket = s.accept();
+                    System.out.println("[INFO] connected to client");
+                    break;
+                } catch (Exception netE1){
+                    System.out.println(netE1);
+                    System.out.println("[INFO] didn't connect to a client");
+                    continue;
+                }
+            }
+
+
+            BufferedReader in = null;
+            try{
+                // make the reader
+                in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            } catch(Exception inE){
+                System.out.println(inE);
+                System.out.println("[ERROR] could not create reader");
+                try{
+                    clientSocket.close();
+                } catch (Exception e){
+                    System.out.println(e);
+                }
+                continue;
+            }
+
+
+            String afsLoc;
+            String toAppend;
+            try{
+                // the file we're indexing
+                afsLoc = in.readLine();
+                System.out.println("[INFO] afsLoc: " + afsLoc);
+                System.out.println("Great!  Now enter it's identifier:");
+                toAppend = in.readLine();
+                System.out.println("[INFO] toAppend: " + toAppend);
+                System.out.println("Awesome! let's get this thing going");
+            } catch (Exception readLocE){
+                System.out.println("[ERROR] read fail");
+                System.out.println(readLocE);
+                try{ 
+                    clientSocket.close();
+                } catch (Exception e2){
+                    System.out.println(e2);
+                }
+                continue;
+            }
 
             // let's make tempIn
             try{
@@ -64,6 +187,11 @@ public class RunMe {
                 System.out.println("[ERROR] could not copy the specified string");
                 System.out.println(copyAFSExc);
                 System.out.println("try again with a different file");
+                try{
+                    clientSocket.close();
+                } catch (Exception e7){
+                    System.out.println(e7);
+                }
                 continue;
             }
             System.out.println("[INFO] copied file into HDFS");
@@ -155,7 +283,13 @@ public class RunMe {
             System.out.println("[INFO] " + tempOut + "rm'd");
 
             // let's go again!
-            System.out.println("enter next file loc");
+            try{
+                clientSocket.close();
+                System.out.println("[INFO] client socket closed");
+            } catch (Exception closeE){
+                System.out.println(closeE);
+                System.out.println("[ERROR] could not close");
+            }
         }
 
     }

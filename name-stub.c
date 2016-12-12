@@ -15,14 +15,20 @@
 #define SUPER_NODE_REQUEST   4
 #define SUPER_NODE_REGISTER  5
 #define SUPER_NODE_HEARTBEAT 6
+#define DATA_NODE_REQUEST   7
+#define DATA_NODE_REGISTER  8
+#define DATA_NODE_HEARTBEAT 9
+
 
 #define MAX_SUPER_NODE 16
 #define MAX_WORKERS    16
+#define MAX_DATA_NODE 16
 
 #define HEARTBEAT_WAIT_TIME 15
 
 void *process_heartbeat(void *args);
 void *process_super_node_heartbeat(void *args);
+void *process_data_node_heartbeat(void *args);
 
 // worker list, and mutex for using the list
 char workers[MAX_WORKERS][100];
@@ -33,6 +39,11 @@ pthread_mutex_t worker_lock;
 char super_nodes[MAX_SUPER_NODE][100];
 int super_node_heartbeat[MAX_SUPER_NODE];
 pthread_mutex_t super_node_lock;
+
+// data_node list, and mutex for using the list
+char data_nodes[MAX_DATA_NODE][100];
+int data_node_heartbeat[MAX_DATA_NODE];
+pthread_mutex_t data_node_lock;
 
 // NOTE: since we're using an append on the name-server, 
 // there may be entries that no longer exist.  Currently,
@@ -66,6 +77,9 @@ void init_server(char * ip, int port){
     if(pthread_mutex_init(&super_node_lock, NULL) != 0){
         printf("error creating the super_node mutex\n");
     }
+    if(pthread_mutex_init(&data_node_lock, NULL) != 0){
+        printf("error creating the data_node mutex\n");
+    }
 
     // init the heartbeat
     pthread_t heartbeat;
@@ -73,6 +87,9 @@ void init_server(char * ip, int port){
 
     pthread_t super_node_heartbeat;
     pthread_create(&super_node_heartbeat, NULL, process_super_node_heartbeat, NULL);
+
+    pthread_t data_node_heartbeat;
+    pthread_create(&data_node_heartbeat, NULL, process_data_node_heartbeat, NULL);
 }
 
 void *process_connection(void *args){
@@ -251,7 +268,7 @@ void *process_connection(void *args){
     }
     else if(request_type == SUPER_NODE_REGISTER || request_type == SUPER_NODE_HEARTBEAT){
         printf("super_node register or super_node heartbeat\n");
-        
+
         int i;
 
         int32_t length;
@@ -262,7 +279,7 @@ void *process_connection(void *args){
             free(args);
             pthread_exit(NULL);
         }
-        
+
         length = ntohl(length);
         if(length <=0 || length >= 100){
             printf("invalid length\n");
@@ -303,12 +320,100 @@ void *process_connection(void *args){
             pthread_exit(NULL);
         }
         printf("saving super node\n");
-        
+
         bzero(super_nodes[free_spot], 100);
         strncpy(super_nodes[free_spot], super_node_ip, 100);
         printf("super node saved as %s at %d\n", super_nodes[free_spot], free_spot);
         super_node_heartbeat[free_spot] = 1;
         pthread_mutex_unlock(&super_node_lock);
+    }
+    else if(request_type == DATA_NODE_REQUEST){
+        printf("data node request");
+        
+        int i;
+        // count our data nodes
+        int32_t count = 0;
+        for(i=0; i<MAX_DATA_NODE; i++){
+            if(data_nodes[i]!=0){
+                count++;
+            }
+        }
+        printf("found %d data nodes\n");
+        count = htonl(count);
+        // send that count
+        write(client_fd, &count, sizeof(int32_t));
+        
+        char dataNodeToSend[101];
+        for(i=0; i<MAX_DATA_NODE; i++){
+            if(data_nodes[i]!=0){
+                bzero(dataNodeToSend,101);
+                sprintf(dataNodeToSend, "%s;", data_nodes[i]);
+                write(client_fd, dataNodeToSend, sizeof(char) * strnlen(dataNodeToSend,101));
+                printf("sent %s", dataNodeToSend);
+            }
+        }
+        
+    }
+    else if(request_type == DATA_NODE_REGISTER || request_type == DATA_NODE_HEARTBEAT){
+        printf("data node register or heartbeat");
+        int i;
+
+        int32_t length;
+        int res = read(client_fd, &length, sizeof(int32_t));
+        if(res <= 0){
+            printf("error reading request\n");
+            close(client_fd);
+            free(args);
+            pthread_exit(NULL);
+        }
+
+        length = ntohl(length);
+        if(length <=0 || length >= 100){
+            printf("invalid length\n");
+            close(client_fd);
+            free(args);
+            pthread_exit(NULL);
+        }
+
+        char data_node_ip[101];
+        res = read(client_fd, data_node_ip, sizeof(char) * length);
+        if(res <= 0){
+            printf("invalid read\n");
+            close(client_fd);
+            free(args);
+            pthread_exit(NULL);
+        }
+        data_node_ip[100] = '\0';
+        int free_spot = MAX_DATA_NODE;
+        pthread_mutex_lock(&data_node_lock);
+        for(i=0; i<MAX_DATA_NODE; i++){
+            if(data_nodes[i][0] == '\0'){
+                free_spot = i;
+            }
+            else if(strcmp(data_nodes[i],data_node_ip) == 0){
+                printf("found %s at %d\n", data_node_ip, i);
+                data_node_heartbeat[i] = 1;
+                pthread_mutex_unlock(&data_node_lock);
+                close(client_fd);
+                free(args);
+                pthread_exit(NULL);
+            }       
+        }
+        if(free_spot == MAX_DATA_NODE){
+            printf("no space to store data node\n");
+            pthread_mutex_unlock(&data_node_lock);
+            close(client_fd);
+            free(args);
+            pthread_exit(NULL);
+        }
+        printf("saving data node\n");
+
+        bzero(data_nodes[free_spot], 100);
+        strncpy(data_nodes[free_spot], data_node_ip, 100);
+        printf("super data saved as %s at %d\n", data_nodes[free_spot], free_spot);
+        data_node_heartbeat[free_spot] = 1;
+        pthread_mutex_unlock(&data_node_lock);
+
     }
     else{
         printf("invalid request %d, closing connection\n", request_type);
@@ -363,6 +468,25 @@ void *process_super_node_heartbeat(void *args){
             }
         }
         pthread_mutex_unlock(&super_node_lock);
+        sleep(HEARTBEAT_WAIT_TIME);
+    }
+}
+
+void *process_data_node_heartbeat(void *args){
+    int i;
+    while(1){
+        pthread_mutex_lock(&data_node_lock);
+        for(i=0; i<MAX_DATA_NODE; i++){
+            if(data_node_heartbeat[i] == 1){
+                data_node_heartbeat[i] = 0;
+            }
+            else {
+                if(data_nodes[i][0] != '\0'){
+                    printf("[heartbeat] data node %s at %d inactive, clearing entry in the table\n", data_nodes[i], i);
+                }
+            }
+        }
+        pthread_mutex_unlock(&data_node_lock);
         sleep(HEARTBEAT_WAIT_TIME);
     }
 }

@@ -22,6 +22,7 @@
 #define HEARTBEAT 3
 #define SHEARTBEAT 6
 #define DHEARTBEAT 9
+#define DREQUEST 7
 #define CHNK 4
 #define INDEX 1
 #define SORT 2

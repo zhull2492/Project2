@@ -33,7 +33,7 @@ datanode: datanode.o communication.o googlehelp.o index.o reducer.o
 	$(CC) -o datanode datanode.o communication.o googlehelp.o index.o reducer.o
 
 datanode.o: datanode.cpp
-	$(CC) -c datnode.cpp
+	$(CC) -c datanode.cpp
 
 clean:
 	$(RM) googleServer googleTest receiver datanode *.o *~

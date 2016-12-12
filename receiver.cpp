@@ -231,8 +231,8 @@ int main () {
 		recvTCP(&numbytes, &nssockfd, (void *)&datanodes[j], MAXBUFLEN);
 		datanodes[j][numbytes] = '\0';
 	    }
-	    start = &datanodes[0];
-	    end = strchr(&datanodes[0], ':');
+	    start = datanodes[0];
+	    end = strchr(datanodes[0], ':');
 	    strncpy(datahost, start, end-start);
 	    datahost[end-start] = '\0';
 	    start = end + 1;
@@ -240,7 +240,7 @@ int main () {
 	    strncpy(dataport, start, end-start);
 	    dataport[end-start] = '\0';
 
-	    createTCPSend(&datasockfd, &datahints, dataname, dataport);
+	    createTCPSend(&datasockfd, &datahints, datahost, dataport);
 	    if (numreducers == 1) {
 		cout << "I am only reducer" << endl;
 		while(curr->next != NULL) {

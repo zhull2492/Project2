@@ -53,9 +53,8 @@ public class RunMe {
             nsSocket.close();
 
         } catch (Exception regE){
-            System.out.println("[FATAL] could not contact the namserver");
+            System.out.println("[ERROR] could not contact the namserver");
             System.out.println(regE);
-            System.exit(-1);
 
         }
     }
@@ -198,7 +197,8 @@ public class RunMe {
 
 
             // let's index!
-            try{ 
+            try{
+                System.out.println("[INFO] calling the indexer");
                 Indexer.indexFile(tempIn, tempOut);
             } catch (Exception indexExcept){
                 // indexFile threw us an exception

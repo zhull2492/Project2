@@ -22,24 +22,30 @@ public class Indexer{
 
 
     public static void indexFile(String inputPath, String outputPath) throws Exception{
-
+        System.out.println("[INFO] starting indexer");
         //create the job
         Job job = new Job();
         job.setJarByClass(Indexer.class);
         job.setJobName("index_1_file");
+        System.out.println("[INFO] set job name");
 
         // set the paths
         FileInputFormat.addInputPath(job, new Path(inputPath));
         FileOutputFormat.setOutputPath(job, new Path(outputPath));
+        System.out.println("[INFO] set file paths");
 
         // set out mapper and reducer
         job.setMapperClass(IndexMapper.class);
         job.setCombinerClass(IndexReducer.class);
         job.setReducerClass(IndexReducer.class);
 
+        System.out.println("[INFO] set mapper, reducer, and combiner");
+
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(IntWritable.class);
+        System.out.println("[INFO] set key/vaule");
 
+        System.out.println("[INFO] starting job");
         job.waitForCompletion(true);
     }
 

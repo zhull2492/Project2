@@ -24,6 +24,10 @@ create hadoop folders
  * hadoop fs -mkdir test
  * hadoop fs -mkdir test/mv
 
+start the name_server
+ * cd ..
+ * ./name_server
+
 start the global indexer
  * hadoop jar Indexer.jar RunMe2
 

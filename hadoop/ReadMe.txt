@@ -31,13 +31,14 @@ start the single file indexer
  * hadoop jar Indexer.jar RunMe
 
 running RunMe:
+ * connect with nc <ip> <port>
  * enter a path of a text file
  * enter that file's identifier (path, UID, etc)
- * wait . . .
- * repeat 
+ * that's it
  
- running RunMe2:
-  * RunMe2 requires no input
+ 
+running RunMe2:
+ * RunMe2 requires no input
 
 results:
  * hadoop fs -cat test/out/part-r-00000

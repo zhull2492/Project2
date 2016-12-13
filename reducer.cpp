@@ -35,6 +35,63 @@ void sortList(word_list * head) {
     return;
 }
 
+word_list* mergeIndex(word_list *masterlist, word_list *newlist) {
+
+    word_list *mptr, *nptr, *newnode;
+
+    mptr = masterlist;
+    nptr = newlist;
+
+    cout << "merging" << endl;
+
+    while (nptr != NULL) {
+	mptr = masterlist;
+	while(mptr != NULL) {
+	    if (!strcmp(mptr -> word, nptr->word)) { // In master
+		mptr -> count += nptr->count;
+		newlist = nptr -> next;
+		//DELETE
+		nptr = newlist;
+		break;
+	    }
+	    mptr = mptr -> next;
+	}
+	if (mptr == NULL){ // Not in master
+	    newlist = nptr -> next;
+	    nptr -> next = masterlist;
+	    masterlist = nptr;
+	    nptr = newlist;
+	}
+    }
+
+    return masterlist;
+}
+
+void sortListN(word_list *head, int N) {
+
+    word_list *current, *nextnode;
+
+    current = head;
+
+    cout << "SORT" << endl;
+
+    int i;
+
+    while (current != NULL) {
+	nextnode = current->next;
+	while (nextnode != NULL) {
+	    if (((nextnode->word[0]-'a') % N) < ((current->word[0] - 'a') % N)) {//  strcmp(current->word, nextnode->word) > 0) {
+		swap(nextnode, current);
+	    }
+	    nextnode = nextnode -> next;
+	}
+	current = current -> next;
+    }
+
+    return;
+
+}
+
 void swap(word_list *node1, word_list *node2) {
 
     char tempword[MAX_WORD_LENGTH+1];

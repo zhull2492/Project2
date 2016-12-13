@@ -1,6 +1,6 @@
 CC = gcc -g -lpthread
 
-all: name_server index.o
+all: name_server index.o dataHelper.o
 
 name_server: server.o name-stub.o
 	$(CC) -o name_server server.o name-stub.o
@@ -13,6 +13,9 @@ server.o: server.c
 
 index.o: index.c
 	$(CC) -c index.c
+
+dataHelper.o: dataHelper.c
+	$(CC) -c dataHelper.c
 
 clean:
 	$(RM) name_server *.o *~

@@ -1,7 +1,7 @@
 CC = g++ -g3 -lpthread
 
-all: googleServer googleTest receiver
-
+all: googleServer googleTest receiver datanode
+ 
 communication.o: communication.cpp
 	$(CC) -c communication.cpp
 
@@ -29,5 +29,11 @@ receiver: receiver.o communication.o googlehelp.o index.o reducer.o
 reducer.o: reducer.cpp
 	$(CC) -c reducer.cpp
 
+datanode: datanode.o communication.o googlehelp.o index.o reducer.o dataHelper.o
+	$(CC) -o datanode datanode.o communication.o googlehelp.o index.o reducer.o dataHelper.o
+
+datanode.o: datanode.cpp
+	$(CC) -c datanode.cpp
+
 clean:
-	$(RM) googleServer googleTest receiver *.o *~
+	$(RM) googleServer googleTest receiver datanode *.o *~

@@ -84,6 +84,16 @@ void recvTCP(int * numbytes, int * newfd, void* buf, int recvSize) {
     return;
 }
 
+void recvUDP(int * numbytes, int * sockfd, void* buf, int recvSize, struct sockaddr *their_addr, socklen_t *addr_len) {
+
+    if ((*numbytes = recvfrom(*sockfd, buf, recvSize, 0, their_addr, addr_len)) == -1){
+	perror("recvfrom");
+	return;
+    }
+
+    return;
+}
+
 void createUDPSend(int * sockfd, struct addrinfo *hints, struct addrinfo *pout, char *hostname, char *hostport) {
 
     int status;
@@ -178,8 +188,6 @@ int createTCPSend (int * sockfd, struct addrinfo *hints, char *hostname, char *h
 
 	// Connect
 	if ((connect(*sockfd, p->ai_addr, p->ai_addrlen)) == -1) {
-	    int errsv = errno;
-	    printf("ERROR: %d", errsv);
 	    close(*sockfd);
 	    perror("Connecting");
 	    freeaddrinfo(res);

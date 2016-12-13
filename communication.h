@@ -21,6 +21,7 @@ void createTCPRecv(int * sockfd, struct addrinfo *hints, const char * port);
 void listenTCP(int * sockfd, int bufLen);
 void acceptTCP(int * sockfd, int * newfd, struct sockaddr_storage * client_addr, socklen_t * addr_len);
 void recvTCP(int * numbytes, int * newfd, void* buf, int recvSize);
+void recvUDP(int * numbytes, int *sockfd, void * buf, int recvSize, struct sockaddr *their_addr, socklen_t *addr_len);
 void createUDPSend(int *sockfd, struct addrinfo *hints, struct addrinfo *pout, char *hostname, char *hostport);
 void sendUDP(int * numbytes, int * sockfd, void *buf, int bytesToSend, struct addrinfo *p);
 void sendTCP (int *numbytes, int* sockfd, void* buf, int bytesToSend);

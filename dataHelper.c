@@ -50,6 +50,7 @@ int insertWord(char* inword, char* docName, int count, struct rootNode **rootN){
         if(root -> next == NULL || strcmp(inword, root->next->word) <0){
             // we're going down from here
             list = root->list;
+            int depth = 0;
             while(list!=NULL){
                 if(strcmp(inword,list->word) == 0){
                     // add to this list
@@ -68,17 +69,28 @@ int insertWord(char* inword, char* docName, int count, struct rootNode **rootN){
                         //first node under root
                         newNode ->nextWord = root->list;
                         newNode ->nextDoc = list;
+                        return 0;
                     }
                     else{
                         // prev is the word before
                         newNode->nextWord = prev->nextWord;
                         prev->nextWord = newNode;
                         newNode->nextDoc = list;
+                        return 0;
                     }
                 }
                 else if(list->nextWord == NULL){
                     // add to end of list
-                    list->nextWord = newNode;
+                    if(depth< MAX_DEPTH){
+                        list->nextWord = newNode;
+                        return 0;
+                    }
+                    // add a new rootnode
+                    struct rootNode* newRoot = calloc(0, sizeof(struct rootNode));
+                    strcpy(newRoot->word, inword);
+                    newRoot->next = root->next;
+                    root->next = newRoot;
+                    newRoot->list = newNode;
 
                 }
                 else if(strcmp(inword, list->nextWord->word)<0){
@@ -86,19 +98,29 @@ int insertWord(char* inword, char* docName, int count, struct rootNode **rootN){
                     if(prev == NULL){
                         newNode->nextWord == root->list;
                         root->list = newNode;
+                        return 0;
                     }
                     else{
                         newNode->nextWord = prev->nextWord;
                         prev->nextWord = newNode;
+                        return 0;
                     }
                     
                 }
                 prev = list;
                 list = list->nextWord;
+                depth = depth +1;
             }
         }
         else{
+            struct rootNode* newRoot = calloc(0,sizeof(struct rootNode));
+            strcpy(newRoot->word, inword);
+            newRoot->next = root;
+            rootN = &newRoot;
+            newRoot->list = newNode;
+            return 0;
             // add before current root
+            
         }
         
     }

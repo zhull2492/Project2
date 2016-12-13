@@ -527,6 +527,52 @@ void * indexCall(void * params) {
     pthread_exit(NULL);
 }
 
+void * countCall(void * params) {
+
+    char *pchstart, *pchend, helpers[3];
+    char indexfile[MAXBUFLEN];
+    threadParam tdparams;
+
+    cout << "BUF: " <<  ((threadParam *)params)->buf << endl;
+
+//    strncpy(helpers, ((threadParam *)params)->buf+5, 2);
+//    helpers[2] = '\0';
+
+//    cout << "Helpers: " << helpers << "\t" << atoi(helpers) << endl;
+
+//    tdparams.numhelpers = atoi(helpers); 
+
+//    cout << "stored: " << tdparams.numhelpers << endl;
+
+    pchstart = ((threadParam *)params)->buf+5;
+    while (strlen(pchstart)) {
+
+	// Get filename
+	pchend = strchr(pchstart, ';');
+
+	// Parse out Filename
+	strncpy(tdparams.buf, pchstart, pchend-pchstart);
+	tdparams.buf[pchend-pchstart] = '\0';
+
+	tdparams.status = 1;
+
+#ifdef DEBUG
+	cout << tdparams.buf << endl;
+#endif
+
+	// TODO: Check if file already indexed
+
+	// Send file to helpers
+	createNewThread(SRCH, (void*)&tdparams);
+
+	// Need a little pause for accuracy
+	usleep (100);
+	pchstart = pchend + 1;
+    }
+
+    pthread_exit(NULL);
+}
+
 void * sendHeartbeat(void *params) {
 
     int32_t beatOpt = htonl((int32_t)HEARTBEAT);
@@ -622,6 +668,88 @@ void * sendDataHeartbeat(void *params) {
     pthread_exit(NULL);
 }
 
+void * send2Datanode(void * params) {
+
+    int h, i;
+    int filesize, sizeperhelper, totoalSent, sendBuf, numhelpers;
+    int status, helpsockfd, nssockfd, worktcpsockfd, numbytes, action;
+    char helperport[MAXBUFLEN], helpername[MAXBUFLEN], sizebuf[32], nsfile[MAXBUFLEN], buf[MAXBUFLEN], nsname[MAXBUFLEN], nsport[MAXBUFLEN], myhelpers[MAX_WORKERS][MAXBUFLEN], hostname[MAXBUFLEN], hostport[MAXBUFLEN], strVal[MAXBUFLEN], *start, *end;
+    stringstream readBuf;
+    ifstream infile;
+    struct addrinfo helphints, nshints, worktcphints, *helpres, *hp;
+    size_t startLoc, endLoc;
+    IPInfo workinfo;
+    int iter = 1;
+
+    strcpy(nsfile, "ns.txt");
+
+    while (1) {
+	findNameserver(nsfile, buf, iter);
+
+	start = buf;
+	end = strchr(buf, ':');
+	strncpy(nsname, start, end-start);
+	nsname[start-end] = '\0';
+	start = end + 1;
+	strcpy(nsport, start);
+
+	if (!createTCPSend(&nssockfd, &nshints, nsname, nsport)) {
+	    break;
+	}
+	iter++;
+    }
+
+    close(nssockfd);
+
+    while (1) {
+	createTCPSend(&nssockfd, &nshints, nsname, nsport);
+
+	action = htonl((int32_t)DREQUEST);
+
+	sendTCP(&numbytes, &nssockfd, (void *)&action, sizeof(int32_t));
+	recvTCP(&numbytes, &nssockfd, (void *)&numhelpers, sizeof(int32_t));
+
+	numhelpers = ntohl(numhelpers);
+
+	cout << "I get " << numhelpers << " helpers" << endl;
+	if (numhelpers > 0) {
+	    break;
+	}
+	else {
+	    sleep(2);
+	}
+	close(nssockfd);
+    }
+
+    recvTCP(&numbytes, &nssockfd, (void *)buf, MAXBUFLEN);
+
+    close(nssockfd);
+
+    start = buf;
+    end = strchr(buf, ':');
+    strncpy(hostname, start, end-start);
+    hostname[end-start] = '\0';
+    start = end + 1;
+    end = strchr(start, ';');
+    strncpy(hostport, start, end-start);
+    hostport[end-start] = '\0';
+
+    createTCPSend(&worktcpsockfd, &worktcphints, hostname, hostport);
+
+    action = htonl((int32_t)SENDCOUNT);
+
+    sendTCP(&numbytes, &worktcpsockfd, (void *)&action, sizeof(int32_t));
+    sendTCP(&numbytes, &worktcpsockfd, (void *)((threadParam *)params)->buf, MAXBUFLEN);
+
+    recvTCP(&numbytes, &worktcpsockfd, buf, MAXBUFLEN);
+
+    cout << "It says: " << buf << endl;
+
+    sendTCP(&numbytes, &(((threadParam *)params)->returnfd), buf, MAXBUFLEN);
+
+    pthread_exit(NULL);
+}
+
 void createNewThread(int option, void * param) {
 
     pthread_t t;
@@ -635,6 +763,7 @@ void createNewThread(int option, void * param) {
 	    }
 	    break;
 	case CNT:
+	    pthread_create(&t, NULL, countCall, param);
 	    break;
 	case TOP:
 	    pthread_create(&t, NULL, indexCall, param);
@@ -654,6 +783,9 @@ void createNewThread(int option, void * param) {
 	    break;
 	case DHEARTBEAT:
 	    pthread_create(&t, NULL, sendDataHeartbeat, param);
+	    break;
+	case SRCH:
+	    pthread_create(&t, NULL, send2Datanode, param);
 	    break;
 	default:
 	    break;

@@ -28,6 +28,8 @@
 #define SORT 2
 #define DREGISTER 8
 #define ACCEPTNEW 0
+#define SENDCOUNT 1
+#define SRCH 10
 
 struct threadParam {
     char buf[MAXBUFLEN];

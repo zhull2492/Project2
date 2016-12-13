@@ -122,14 +122,15 @@ int main (int argc, char* argv[]) {
 	    cout << "Waiting for more" << endl;
 #endif
 	}
-//	else if (!strcmp(action, "COUNT")) {
-//	    strncpy(topParams.buf, buf, strlen(buf));
-//	    topParams.buf[strlen(buf)] = '\0';
-//	    topParams.status = 1;
-//	    topParams.returnfd = newfd;
+	else if (!strcmp(action, "COUNT")) {
+	    cout << "CoUNT" << endl;
+	    strncpy(topParams.buf, buf, strlen(buf));
+	    topParams.buf[strlen(buf)] = '\0';
+	    topParams.status = 1;
+	    topParams.returnfd = newfd;
 	    
-//	    createNewThread(TOP
-//	}
+	    createNewThread(CNT, (void *)&topParams);
+	}
 	close(newfd);
     }
 

@@ -29,8 +29,8 @@ receiver: receiver.o communication.o googlehelp.o index.o reducer.o
 reducer.o: reducer.cpp
 	$(CC) -c reducer.cpp
 
-datanode: datanode.o communication.o googlehelp.o index.o reducer.o
-	$(CC) -o datanode datanode.o communication.o googlehelp.o index.o reducer.o
+datanode: datanode.o communication.o googlehelp.o index.o reducer.o dataHelper.o
+	$(CC) -o datanode datanode.o communication.o googlehelp.o index.o reducer.o dataHelper.o
 
 datanode.o: datanode.cpp
 	$(CC) -c datanode.cpp

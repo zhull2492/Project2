@@ -240,10 +240,22 @@ int main () {
 	    strncpy(dataport, start, end-start);
 	    dataport[end-start] = '\0';
 
+	    action = htonl((int32_t)ACCEPTNEW);
+
+	    char wordBuf[MAX_WORD_LENGTH];  
+
 	    createTCPSend(&datasockfd, &datahints, datahost, dataport);
+	    sendTCP(&numbytes, &datasockfd, (void *)&action, sizeof(int32_t));
 	    if (numreducers == 1) {
 		cout << "I am only reducer" << endl;
-		while(curr->next != NULL) {
+		while(curr != NULL) {
+		    strcpy(wordBuf, curr->word);
+		    wordBuf[strlen(curr->word)] = '\0';
+		    cout << wordBuf << "\t" << curr->count << endl;
+		    sendTCP(&numbytes, &datasockfd, (void *)wordBuf, MAX_WORD_LENGTH);
+		    int32_t cval = htonl(curr->count);
+		    usleep(250);
+		    sendTCP(&numbytes, &datasockfd, (void *)&cval, sizeof(int32_t));
 		    curr = curr -> next;
 		}
 	    }
@@ -269,6 +281,8 @@ int main () {
 		    }
 		}
 	    }
+	    char doneMessage[MAXBUFLEN] = "CODE31";
+	    sendTCP(&numbytes, &datasockfd, (void *)doneMessage, MAXBUFLEN);
 	    // TODO: Send done
 	    close(newfd);
 	    close(datasockfd);

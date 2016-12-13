@@ -27,6 +27,7 @@
 #define INDEX 1
 #define SORT 2
 #define DREGISTER 8
+#define ACCEPTNEW 0
 
 struct threadParam {
     char buf[MAXBUFLEN];
